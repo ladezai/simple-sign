@@ -1,0 +1,21 @@
+[package]
+name = "signature"
+version = "0.0.1"
+edition = "2021"
+authors = ["Giorgio Susanna <mbqmgs@gmail.com>"]
+description = "Naive implementation of the Signature embedding of a path"
+license = "MIT"
+repository = "https://github.com/ladezai/signature"
+readme = "README.md"
+
+categories = ["algorithms", "mathematics"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ndarray = "0.15.6"
+num-traits = "0.2.19"
+thiserror = "1.0.60"
+
+[dev-dependencies] 
+plotly = "0.8.4"
