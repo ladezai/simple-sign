@@ -8,6 +8,8 @@ pub enum TruncatedSignatureParamsError {
     PathDimensionNonPositive(usize),
     #[error("Number of threads ({0}) must be strictly positive")]
     NThreadNonPositive(usize),
+    #[error("The algorithm is not implemented")]
+    AlgorithmNotImplemented,    
 }
 
 #[derive(Error, Debug)]
@@ -28,5 +30,5 @@ pub enum TruncatedSignatureError {
         order2 : usize
     },
     #[error(transparent)]
-    BaseCrate(#[from] TruncatedSignatureParamsError)
+    Params(#[from] TruncatedSignatureParamsError)
 }

@@ -6,10 +6,10 @@ pub fn impure_1() -> Result<TruncatedSignature<f32>, TruncatedSignatureError> {
     let data2 = array![4., 2.];
     let sig1 : TruncatedSignature<f32> = TruncatedSignatureParams::new(2_usize, 3_usize)
                             .check()?
-                            .fit(data1)?;
+                            .fit(&data1)?;
     let sig2 : TruncatedSignature<f32> = TruncatedSignatureParams::new(2_usize, 3_usize)
                             .check()?
-                            .fit(data2)?;
+                            .fit(&data2)?;
     let sig1 = (sig1).chens_addition(&sig2)?;
     Ok(sig1)
 }
@@ -18,7 +18,7 @@ pub fn impure_2() -> Result<TruncatedSignature<f32>, TruncatedSignatureError> {
     let data = array![6., 3.];
     let sig1 : TruncatedSignature<f32> = TruncatedSignatureParams::new(2_usize, 3_usize)
                             .check()?
-                            .fit(data)?;
+                            .fit(&data)?;
     Ok(sig1)
 }
 

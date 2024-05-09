@@ -55,7 +55,7 @@ impl TruncatedSignatureValidParams {
        (1.. (*order as u32)).map(|v| dimension.pow(v as u32)).sum()
     }
 
-    pub fn fit<F : Float + FromPrimitive + 'static>(&self, data : Array1<F>) -> Result<TruncatedSignature<F>, TruncatedSignatureError> {
+    pub fn fit<F : Float + FromPrimitive + 'static>(&self, data : &Array1<F>) -> Result<TruncatedSignature<F>, TruncatedSignatureError> {
         //println!("{:?}", data);
         // NOTE: we can do something better here by using the good old trick of 
         // sum_k 1/d^k =  (d^{M+1} - 1)/ (d-1)
@@ -68,7 +68,7 @@ impl TruncatedSignatureValidParams {
                 signature_dim : self.dimension()
             });
         }
-        let matrix_data : Array2<F>  = data.into_shape((m,1)).unwrap();
+        let matrix_data : Array2<F>  = data.to_owned().into_shape((m,1)).unwrap();
         //println!("{:?}", matrix_data);
         let mut kron_mul : Array2<F> = matrix_data.to_owned(); 
         // normalization factor
@@ -101,6 +101,29 @@ impl TruncatedSignatureValidParams {
             dimension : self.dimension, 
             signature : signature
         }) 
+    }
+    
+    /// 
+    /// Generates a TruncatedSignature given points on a path.
+    ///
+    pub fn fit_from_points<F : Float + FromPrimitive + 'static>(&self, data : Vec<Array1<F>>) -> Result<TruncatedSignature<F>, TruncatedSignatureError> {
+        // The idea here is trivial: 
+        // use self.fit(dst_vec1) 
+        match self.method() {
+            Algorithm::ChenAddition => {
+                let delta_data : Vec<Array1<F>> = data.iter().zip(data.iter().skip(1)).map(|(v1, v2)| v2-v1).collect();
+                let zero_elem : TruncatedSignature<F> = self.fit(&Array1::zeros(self.dimension())).unwrap();
+                // If an error occurs, pass it  
+                delta_data.iter().fold(Ok(zero_elem), |acc, v| match acc {
+                    Ok(tsig) => match self.fit(v) {
+                        Ok(tsig1) => tsig.chens_addition(&tsig1),
+                        a => a
+                    }
+                    a => a
+                })
+            },
+            _ => Err(TruncatedSignatureError::Params(TruncatedSignatureParamsError::AlgorithmNotImplemented))
+        }
     }
 }
 
