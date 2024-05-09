@@ -1,10 +1,10 @@
 use ndarray::prelude::*;
-use ndarray::ScalarOperand;
-use ndarray::linalg::kron;
+use ndarray::linalg::{kron};
 use num_traits::{Float, FromPrimitive};
 use crate::error::{TruncatedSignatureParamsError, TruncatedSignatureError}; 
 
-use core::fmt::{Display, Debug};
+use core::fmt::{Debug};
+use std::ops::{Add, Mul, Sub};
 
 #[derive(Clone, Copy, Debug)]
 ///
@@ -164,7 +164,7 @@ pub struct TruncatedSignature<F : Float> {
     signature : Array<F, Ix1>
 } 
 
-impl<F : Float + Debug + Display + ScalarOperand + FromPrimitive + 'static> TruncatedSignature<F> {
+impl<F : Float> TruncatedSignature<F> {
     pub fn params(order : usize, dimension : usize) -> TruncatedSignatureParams {
         TruncatedSignatureParams::new(order, dimension)
     }
@@ -187,8 +187,10 @@ impl<F : Float + Debug + Display + ScalarOperand + FromPrimitive + 'static> Trun
         self.signature.slice(s![initial_idx.. end_idx])
     }
 
+    
+}
+impl<F : Float + FromPrimitive + 'static> TruncatedSignature<F> {
     pub fn chens_addition(mut self, other : &TruncatedSignature<F>) -> Result<TruncatedSignature<F>, TruncatedSignatureError> {
-        //pub fn chens_addition(&self, other : &TruncatedSignature<F>) -> TruncatedSignature<F> {
         //
         // TODO: check that order are the same, otherwise use the minimum between the two.
         // check that the dimensions are the same, otherwise return an error!
@@ -243,3 +245,98 @@ impl<F : Float + Debug + Display + ScalarOperand + FromPrimitive + 'static> Trun
         Ok(self)
     }
 }
+
+// ########################################
+// BASIC OPERATION IMPLEMENTATION
+// #######################################
+impl<F : Float> Add for TruncatedSignature<F> {
+    type Output = Result<Self, TruncatedSignatureError>;
+    fn add(self, other : Self) -> Self::Output {
+
+        if self.order() != other.order() {
+            return Err(TruncatedSignatureError::IncompatibleOrders {
+                order1 : self.order(), 
+                order2 : other.order()
+            });
+        }
+        if self.dimension() != other.dimension() {
+            return Err(TruncatedSignatureError::IncompatibleDimensions {
+                d_path1 : self.dimension(),
+                d_path2 : other.dimension()
+            });
+        }
+        
+        Ok(Self {
+            order : self.order(),
+            dimension : self.dimension(),
+            signature : self.signature + other.signature
+        })
+    }
+}
+
+impl<F : Float> Sub for TruncatedSignature<F> {
+    type Output = Result<Self, TruncatedSignatureError>;
+    fn sub(self, other : Self) -> Self::Output {
+
+        if self.order() != other.order() {
+            return Err(TruncatedSignatureError::IncompatibleOrders {
+                order1 : self.order(), 
+                order2 : other.order()
+            });
+        }
+        if self.dimension() != other.dimension() {
+            return Err(TruncatedSignatureError::IncompatibleDimensions {
+                d_path1 : self.dimension(),
+                d_path2 : other.dimension()
+            });
+        }
+        
+        Ok(Self {
+            order : self.order(),
+            dimension : self.dimension(),
+            signature : self.signature - other.signature
+        })
+    }
+}
+
+impl<F : Float> Mul for TruncatedSignature<F> {
+    type Output = Result<Self, TruncatedSignatureError>;
+    fn mul(self, other : Self) -> Self::Output {
+        if self.order() != other.order() {
+            return Err(TruncatedSignatureError::IncompatibleOrders {
+                order1 : self.order(), 
+                order2 : other.order()
+            });
+        }
+        if self.dimension() != other.dimension() {
+            return Err(TruncatedSignatureError::IncompatibleDimensions {
+                d_path1 : self.dimension(),
+                d_path2 : other.dimension()
+            });
+        }
+        
+        Ok(Self {
+            order : self.order(),
+            dimension : self.dimension(),
+            signature : self.signature * other.signature
+        })
+    }
+}
+
+// NORMS
+impl<F : Float> TruncatedSignature<F> {
+    fn norm_l1(&self) -> F {
+        self.signature.mapv(|v| v.abs()).sum()
+    }
+
+    fn norm_max(&self) -> F {
+        self.signature.fold(F::neg_infinity(), |acc, v| 
+                if v.abs() > acc { 
+                    v.abs() 
+                } else { 
+                    acc 
+                })
+    }
+
+}
+
