@@ -7,11 +7,20 @@ use crate::error::{TruncatedSignatureParamsError, TruncatedSignatureError};
 use core::fmt::{Display, Debug};
 
 #[derive(Clone, Copy, Debug)]
+///
+/// 
+///
+///
 pub enum Algorithm {
     ChenAddition
 }
 
 #[derive(Clone, Debug)]
+///
+/// 
+///
+///
+///
 pub struct TruncatedSignatureValidParams {
     // Dimension of the space the path belongs to.
     dimension : usize, 
@@ -52,9 +61,13 @@ impl TruncatedSignatureValidParams {
         // sum_k 1/d^k =  (d^{M+1} - 1)/ (d-1)
         let max_idx : usize = TruncatedSignatureValidParams::position_order(&self.dimension, &(self.order + 1));
         let mut signature : Array1<F> = Array1::zeros(max_idx);
-
-
-        let m = data.shape()[0];
+        let m : usize = data.shape()[0];
+        if m != self.dimension() {
+            return Err(TruncatedSignatureError::DataIncompatibleDimension {
+                data_dim : m,
+                signature_dim : self.dimension()
+            });
+        }
         let matrix_data : Array2<F>  = data.into_shape((m,1)).unwrap();
         //println!("{:?}", matrix_data);
         let mut kron_mul : Array2<F> = matrix_data.to_owned(); 
@@ -70,12 +83,6 @@ impl TruncatedSignatureValidParams {
                                                   .iter()
                                                   .cloned());
             //println!("flattened_kron shape: {:?}", flattened_kron.shape());
-            //if checks {
-                // TODO: add additional checks to shapes
-                // if a check is not working, 
-                // return a TruncatedSignatureError...
-            //}
-
             // assigns the value of the i-th order signature.
             signature
                 .slice_mut(s![initial_idx.. (initial_idx+size)])
@@ -88,11 +95,12 @@ impl TruncatedSignatureValidParams {
                 kron_mul = kron(&kron_mul, &matrix_data);
             }
         }
-        Ok(TruncatedSignature::<F> {
-            order : self.order, 
-            dimension : self.dimension, 
-            signature : signature} ) 
 
+        Ok(TruncatedSignature::<F> {
+            order     : self.order, 
+            dimension : self.dimension, 
+            signature : signature
+        }) 
     }
 }
 
@@ -131,11 +139,11 @@ impl TruncatedSignatureParams {
 
     pub fn check_ref(&self) -> Result<&TruncatedSignatureValidParams, TruncatedSignatureParamsError> {
         if self.0.n_thread < 1 {
-            return Err(TruncatedSignatureParamsError::NThreadNonPositive)
+            return Err(TruncatedSignatureParamsError::NThreadNonPositive(self.0.n_thread()))
         } else if self.0.order < 1 {
-            return Err(TruncatedSignatureParamsError::OrderNonPositive)
+            return Err(TruncatedSignatureParamsError::OrderNonPositive(self.0.order()))
         } else if self.0.dimension < 1 {
-            return Err(TruncatedSignatureParamsError::PathDimensionNonPositive)
+            return Err(TruncatedSignatureParamsError::PathDimensionNonPositive(self.0.dimension()))
         }
 
         Ok(&self.0)
@@ -151,7 +159,7 @@ impl TruncatedSignatureParams {
 
 #[derive(Debug)]
 pub struct TruncatedSignature<F : Float> {
-    order : usize,
+    order     : usize,
     dimension : usize,
     signature : Array<F, Ix1>
 } 
@@ -161,7 +169,14 @@ impl<F : Float + Debug + Display + ScalarOperand + FromPrimitive + 'static> Trun
         TruncatedSignatureParams::new(order, dimension)
     }
 
-    
+    pub fn order(&self) -> usize {
+        self.order
+    }
+
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
     ///
     /// Returns a flatten view of the signature of the specified order.
     ///
@@ -179,10 +194,16 @@ impl<F : Float + Debug + Display + ScalarOperand + FromPrimitive + 'static> Trun
         // check that the dimensions are the same, otherwise return an error!
         //
         if self.order != other.order {
-            return Err(TruncatedSignatureError::IncompatibleOrders)
+            return Err(TruncatedSignatureError::IncompatibleOrders { 
+                order1 : self.order(), 
+                order2: other.order()
+            });
         } 
         if self.dimension != other.dimension {
-            return Err(TruncatedSignatureError::IncompatibleDimensions)
+            return Err(TruncatedSignatureError::IncompatibleDimensions {
+                d_path1 : self.dimension(), 
+                d_path2: other.dimension()
+            });
         }
 
         let max_order : usize = self.order;
