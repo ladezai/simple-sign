@@ -1,4 +1,4 @@
-# `signature`
+# `simple-sign`
 
 This packages implements the computation of the Signature embedding of for a
 d-dimensional path. 
