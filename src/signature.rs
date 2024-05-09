@@ -177,6 +177,10 @@ impl<F : Float> TruncatedSignature<F> {
         self.dimension
     }
 
+    pub fn signature(&self) -> ArrayView<F, Ix1> {
+        self.signature.view()
+    }
+
     ///
     /// Returns a flatten view of the signature of the specified order.
     ///
@@ -190,6 +194,7 @@ impl<F : Float> TruncatedSignature<F> {
     
 }
 impl<F : Float + FromPrimitive + 'static> TruncatedSignature<F> {
+
     pub fn chens_addition(mut self, other : &TruncatedSignature<F>) -> Result<TruncatedSignature<F>, TruncatedSignatureError> {
         //
         // TODO: check that order are the same, otherwise use the minimum between the two.
@@ -220,8 +225,7 @@ impl<F : Float + FromPrimitive + 'static> TruncatedSignature<F> {
                                     .slice_mut(s![initial_idx.. (initial_idx+size)]);
             let mut orderi_tensor_owned = orderi_tensor.to_owned();
             orderi_tensor_owned = orderi_tensor_owned
-                            + &other.signature_order_flatten(i) 
-                            + &self.signature_order_flatten(i);
+                            + &other.signature_order_flatten(i);
             //println!("The signature of order {}, adds: \n{}\n and... \n{}.\n", i, &other.signature_order_flatten(i), &self.signature_order_flatten(i));
             for j in 1.. i {
                 let imj : usize = i-j;
@@ -325,11 +329,11 @@ impl<F : Float> Mul for TruncatedSignature<F> {
 
 // NORMS
 impl<F : Float> TruncatedSignature<F> {
-    fn norm_l1(&self) -> F {
+    pub fn norm_l1(&self) -> F {
         self.signature.mapv(|v| v.abs()).sum()
     }
 
-    fn norm_max(&self) -> F {
+    pub fn norm_max(&self) -> F {
         self.signature.fold(F::neg_infinity(), |acc, v| 
                 if v.abs() > acc { 
                     v.abs() 
