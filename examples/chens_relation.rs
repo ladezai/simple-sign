@@ -1,5 +1,5 @@
 use ndarray::prelude::*;
-use signature::{TruncatedSignature, TruncatedSignatureParams, TruncatedSignatureError};
+use simple_sign::{TruncatedSignature, TruncatedSignatureParams, TruncatedSignatureError};
 
 pub fn impure_1() -> Result<TruncatedSignature<f32>, TruncatedSignatureError> {
     let data1 = array![2., 1.];
