@@ -107,21 +107,23 @@ impl TruncatedSignatureValidParams {
     /// Generates a TruncatedSignature given points on a path.
     ///
     pub fn fit_from_points<F : Float + FromPrimitive + 'static>(&self, data : Vec<Array1<F>>) -> Result<TruncatedSignature<F>, TruncatedSignatureError> {
-        // The idea here is trivial: 
-        // use self.fit(dst_vec1) 
+        // switch between different methods to compute the signature
         match self.method() {
             Algorithm::ChenAddition => {
-                let delta_data : Vec<Array1<F>> = data.iter().zip(data.iter().skip(1)).map(|(v1, v2)| v2-v1).collect();
-                let zero_elem : TruncatedSignature<F> = self.fit(&Array1::zeros(self.dimension())).unwrap();
-                // If an error occurs, pass it  
-                delta_data.iter().fold(Ok(zero_elem), |acc, v| match acc {
-                    Ok(tsig) => match self.fit(v) {
-                        Ok(tsig1) => tsig.chens_addition(&tsig1),
-                        a => a
-                    }
-                    a => a
+                // computes the increment vectors between the given data points
+                let delta_data : Vec<Array1<F>> = data.iter()
+                                                .zip(data.iter().skip(1))
+                                                .map(|(v1, v2)| v2-v1)
+                                                .collect();
+                // computes the 0 element for the given signature 
+                let zero_elem : TruncatedSignature<F> = self.fit(&Array1::zeros(self.dimension()))?;
+                // Iteratively fit on the next increment vector, then add it via 
+                // chens relation.
+                delta_data.iter().fold(Ok(zero_elem), |acc, v| {
+                        let fit = self.fit(v)?;
+                        acc?.chens_addition(&fit)
                 })
-            },
+           },
             _ => Err(TruncatedSignatureError::Params(TruncatedSignatureParamsError::AlgorithmNotImplemented))
         }
     }
