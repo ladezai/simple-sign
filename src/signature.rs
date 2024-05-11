@@ -4,12 +4,15 @@ use num_traits::{Float, FromPrimitive};
 use crate::error::{TruncatedSignatureParamsError, TruncatedSignatureError}; 
 
 use core::fmt::{Debug};
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Mul, Sub, Div};
 
 #[derive(Clone, Copy, Debug)]
 ///
-/// 
-///
+/// Algorithm used to compute the Signature of a path W with respect to
+/// multiple points. 
+/// Available algorithms:
+/// * ChenRelation: Iteratively fits at each W_{t_i}  - W_{t_{i+1}} and then takes the product of the
+/// signatures S(W_{[t_i, t_{i+1}]}) \otimes S(W_{[t_{i+1}, t_{i+2}]}).
 ///
 pub enum Algorithm {
     ChenAddition
@@ -17,9 +20,11 @@ pub enum Algorithm {
 
 #[derive(Clone, Debug)]
 ///
-/// 
-///
-///
+/// The data for the fitting procedure. 
+/// dimension : usze = data dimension. 
+/// order : usize = signature truncation order. 
+/// method : Algorithm = algorithm to use for the fitting procedure.
+/// n_thread : usize = number of threads to spawn during the fitting procedure.
 ///
 pub struct TruncatedSignatureValidParams {
     // Dimension of the space the path belongs to.
@@ -31,6 +36,7 @@ pub struct TruncatedSignatureValidParams {
     // n_thread..
     n_thread : usize
 }
+
 impl TruncatedSignatureValidParams {
     // Dimension of the space the path belongs to.
     pub fn dimension(&self) -> usize {
@@ -51,14 +57,30 @@ impl TruncatedSignatureValidParams {
         self.n_thread
     }
 
+    /// Computes 
+    ///  $dimension * (dimension^order - 1)  / (dimension - 1)$
+    /// which corresponds to the index of the view of the 
+    /// component of the tensor dimension^order.
+    /// 
     pub fn position_order(dimension : &usize, order : &usize) -> usize {
-       (1.. (*order as u32)).map(|v| dimension.pow(v as u32)).sum()
+        //(1.. (*order as u32)).map(|v| dimension.pow(v as u32)).sum()
+        if *order == 0_usize || *dimension == 0_usize {
+            panic!("Either order ({}) or the dimension ({}) is non-positive", order, dimension);
+        }
+
+        if *order == 1_usize {
+            return 0_usize;
+        }
+
+        if *dimension == 1_usize {
+            return *order - 1;
+        }
+
+        (dimension * (dimension.pow((order-1) as u32) - 1)).div(dimension-1)
     }
 
     pub fn fit<F : Float + FromPrimitive + 'static>(&self, data : &Array1<F>) -> Result<TruncatedSignature<F>, TruncatedSignatureError> {
         //println!("{:?}", data);
-        // NOTE: we can do something better here by using the good old trick of 
-        // sum_k 1/d^k =  (d^{M+1} - 1)/ (d-1)
         let max_idx : usize = TruncatedSignatureValidParams::position_order(&self.dimension, &(self.order + 1));
         let mut signature : Array1<F> = Array1::zeros(max_idx);
         let m : usize = data.shape()[0];
@@ -68,7 +90,7 @@ impl TruncatedSignatureValidParams {
                 signature_dim : self.dimension()
             });
         }
-        let matrix_data : Array2<F>  = data.to_owned().into_shape((m,1)).unwrap();
+        let matrix_data  : Array2<F>  = data.to_owned().into_shape((m,1)).unwrap();
         //println!("{:?}", matrix_data);
         let mut kron_mul : Array2<F> = matrix_data.to_owned(); 
         // normalization factor
@@ -190,6 +212,13 @@ pub struct TruncatedSignature<F : Float> {
 } 
 
 impl<F : Float> TruncatedSignature<F> {
+    pub fn new(order : usize, dimension : usize, signature : Array<F, Ix1>) -> TruncatedSignature<F> {
+        Self {
+            order : order,
+            dimension : dimension,
+            signature : signature
+        }
+    }
     pub fn params(order : usize, dimension : usize) -> TruncatedSignatureParams {
         TruncatedSignatureParams::new(order, dimension)
     }
@@ -202,6 +231,9 @@ impl<F : Float> TruncatedSignature<F> {
         self.dimension
     }
 
+    ///
+    /// Returns the flatten view of the signature for each component.
+    ///
     pub fn signature(&self) -> ArrayView<F, Ix1> {
         self.signature.view()
     }
@@ -228,13 +260,13 @@ impl<F : Float + FromPrimitive + 'static> TruncatedSignature<F> {
         if self.order != other.order {
             return Err(TruncatedSignatureError::IncompatibleOrders { 
                 order1 : self.order(), 
-                order2: other.order()
+                order2 : other.order()
             });
         } 
         if self.dimension != other.dimension {
             return Err(TruncatedSignatureError::IncompatibleDimensions {
                 d_path1 : self.dimension(), 
-                d_path2: other.dimension()
+                d_path2 : other.dimension()
             });
         }
 
@@ -360,11 +392,12 @@ impl<F : Float> TruncatedSignature<F> {
 
     pub fn norm_max(&self) -> F {
         self.signature.fold(F::neg_infinity(), |acc, v| 
-                if v.abs() > acc { 
-                    v.abs() 
-                } else { 
-                    acc 
-                })
+            if v.abs() > acc { 
+                v.abs() 
+            } else { 
+                acc 
+            )
+        )
     }
 
 }
