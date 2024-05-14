@@ -396,8 +396,7 @@ impl<F : Float> TruncatedSignature<F> {
                 v.abs() 
             } else { 
                 acc 
-            )
-        )
+            })
     }
 
 }
