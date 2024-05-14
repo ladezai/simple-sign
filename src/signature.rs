@@ -128,7 +128,7 @@ impl TruncatedSignatureValidParams {
     /// 
     /// Generates a TruncatedSignature given points on a path.
     ///
-    pub fn fit_from_points<F : Float + FromPrimitive + 'static>(&self, data : Vec<Array1<F>>) -> Result<TruncatedSignature<F>, TruncatedSignatureError> {
+    pub fn fit_from_points<F : Float + FromPrimitive + 'static>(&self, data : &Vec<Array1<F>>) -> Result<TruncatedSignature<F>, TruncatedSignatureError> {
         // switch between different methods to compute the signature
         match self.method() {
             Algorithm::ChenAddition => {
@@ -212,7 +212,7 @@ pub struct TruncatedSignature<F : Float> {
 } 
 
 impl<F : Float> TruncatedSignature<F> {
-    pub fn new(order : usize, dimension : usize, signature : Array<F, Ix1>) -> TruncatedSignature<F> {
+    pub fn new(dimension : usize, order : usize, signature : Array<F, Ix1>) -> TruncatedSignature<F> {
         Self {
             order : order,
             dimension : dimension,
